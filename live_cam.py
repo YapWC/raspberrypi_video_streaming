@@ -7,6 +7,13 @@ import socketserver
 from threading import Condition
 from http import server
 
+import RPi.GPIO as GPIO
+from time import sleep
+
+GPIO.setmode(GPIO.BOARD)
+GPIO.setup(11, GPIO.OUT)
+GPIO.setup(13, GPIO.OUT)
+
 PAGE="""\
 <html>
 <head>
@@ -34,6 +41,7 @@ class StreamingOutput(object):
                                 self.condition.notify_all()
                         self.buffer.seek(0)
                 return self.buffer.write(buf)
+
 
 class StreamingHandler(server.BaseHTTPRequestHandler):
         def do_GET(self):
@@ -71,6 +79,31 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
                 else:
                         self.send_error(404)
                         self.end_headers()
+
+        def do_POST(self):
+                # Get the POST request data
+                content_length = int(self.headers.get('Content-Length', 0))
+                post_data = self.rfile.read(content_length).decode('utf-8')
+
+                if post_data == 'right':
+                        GPIO.output(11, True)
+                        sleep(3)
+                        GPIO.output(11, False)
+                elif post_data == 'left':
+                        GPIO.output(13, True)
+                        sleep(3)
+                        GPIO.output(13, False)
+                else:
+                        print("Wrong post data received!!!!")
+
+                # Process the data (e.g., print it)
+                print(f"Received POST data: {post_data}")
+
+                # Send a response
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                self.wfile.write(b"POST request received!")
 
 class StreamingServer(socketserver.ThreadingMixIn, server.HTTPServer):
         allow_reuse_address = True
